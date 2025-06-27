@@ -109,32 +109,44 @@ def build_playlist():
         st.session_state.current_playlist = sorted(available_questions) 
 
     st.session_state.playlist_index = 0 # Always reset index when playlist is rebuilt
-    st.session_state.showing_answer = False # Always show question first
+    st.session_state.showing_answer = False # Always hide answer when playlist is rebuilt
     
     if not st.session_state.current_playlist:
         st.warning("No questions available based on current skipped list. Try clearing the skipped list.")
 
 def update_flashcard_image():
     """
-    Displays the current flashcard image (question or answer) using st.image.
-    Handles cases where no questions are in the playlist or image files are missing.
+    Displays the current question image and conditionally displays the answer image
+    below it based on st.session_state.showing_answer.
     """
     if not st.session_state.current_playlist:
         st.image("https://placehold.co/800x400/cccccc/333333?text=No+Questions+Available", caption="No questions to display.", use_container_width=True)
         return
 
     current_q_num = st.session_state.current_playlist[st.session_state.playlist_index]
-    image_type = 'A' if st.session_state.showing_answer else 'Q'
-    # Format the question number with leading zeros (e.g., 1 -> 001)
-    image_filename = f"{image_type}_{str(current_q_num).zfill(3)}.png" 
-    image_path = os.path.join(IMAGE_FOLDER, image_filename)
 
-    if os.path.exists(image_path):
-        st.image(image_path, caption=f"Question {current_q_num}", use_container_width=True)
+    # Display Question Image
+    q_image_filename = f"Q_{str(current_q_num).zfill(3)}.png" 
+    q_image_path = os.path.join(IMAGE_FOLDER, q_image_filename)
+
+    if os.path.exists(q_image_path):
+        st.image(q_image_path, caption=f"Question {current_q_num}", use_container_width=True)
     else:
-        st.warning(f"Image not found for Q{current_q_num}: {image_path}. Please ensure images are in the '{IMAGE_FOLDER}' folder.")
-        # Fallback placeholder image
-        st.image("https://placehold.co/800x400/ffcc00/000000?text=Image+Missing", caption=f"Image for Q{current_q_num} missing", use_container_width=True)
+        st.warning(f"Question image not found for Q{current_q_num}: {q_image_path}. Please ensure images are in the '{IMAGE_FOLDER}' folder.")
+        st.image("https://placehold.co/800x400/ffcc00/000000?text=Question+Image+Missing", caption=f"Question {current_q_num} image missing", use_container_width=True)
+
+    # Conditionally Display Answer Image
+    if st.session_state.showing_answer:
+        a_image_filename = f"A_{str(current_q_num).zfill(3)}.png" 
+        a_image_path = os.path.join(IMAGE_FOLDER, a_image_filename)
+        st.write("---") # Separator between question and answer
+        st.subheader("Answer:")
+        if os.path.exists(a_image_path):
+            st.image(a_image_path, caption=f"Answer {current_q_num}", use_container_width=True)
+        else:
+            st.warning(f"Answer image not found for A{current_q_num}: {a_image_path}. Please ensure images are in the '{IMAGE_FOLDER}' folder.")
+            st.image("https://placehold.co/800x400/ff0000/ffffff?text=Answer+Image+Missing", caption=f"Answer {current_q_num} image missing", use_container_width=True)
+
 
 def go_to_playlist_index(index):
     """
@@ -147,7 +159,7 @@ def go_to_playlist_index(index):
 
     if 0 <= index < len(st.session_state.current_playlist):
         st.session_state.playlist_index = index
-        st.session_state.showing_answer = False # Always show question first when navigating
+        st.session_state.showing_answer = False # Always hide answer when navigating to new question
     else:
         st.info("End of playlist reached.")
 
@@ -297,8 +309,9 @@ with st.sidebar:
 # --- Main Controls (All on one line and horizontally aligned) ---
 # Create a single row of columns for all main controls
 # Adjusted column ratios to fit all elements comfortably on one line
-# Removed col_q_label as its content will be part of col_q_num's text_input
-col_prev, col_q_num, col_next, col_shuffle, col_answer, col_skip = st.columns([0.8, 2.3, 0.8, 1.5, 1.5, 1.5]) 
+# Old: col_prev, col_q_num, col_next, col_shuffle, col_answer, col_skip = st.columns([0.8, 2.3, 0.8, 1.5, 1.5, 1.5]) 
+# New: Reduced col_q_num, increased shuffle/answer/skip slightly
+col_prev, col_q_num, col_next, col_shuffle, col_answer, col_skip = st.columns([0.8, 1.5, 0.8, 1.8, 1.8, 1.8]) 
 
 with col_prev:
     st.button("<<", on_click=lambda: go_to_playlist_index(st.session_state.playlist_index - 1), use_container_width=True)
@@ -332,7 +345,7 @@ with col_shuffle:
 with col_answer:
     # Toggle between showing question and answer
     st.button(
-        "Question?" if st.session_state.showing_answer else "Answer?",
+        "Hide Answer" if st.session_state.showing_answer else "Show Answer", # Change button text
         on_click=lambda: setattr(st.session_state, 'showing_answer', not st.session_state.showing_answer),
         use_container_width=True
     )
